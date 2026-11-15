@@ -1,0 +1,6 @@
+{
+  "name": "AegisX",
+  "description": "Navegador de privacidade futurista baseado no motor Chromium com bloqueio de anúncios nativo, VPN criptografada, tradução automática inteligente, suporte a extensões personalizadas, reprodutor universal com download local e sincronização multi-dispositivo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

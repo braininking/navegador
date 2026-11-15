@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserPreferences(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 200)) &&
+             data.preferredLanguage is string && data.preferredLanguage.size() >= 2 && data.preferredLanguage.size() <= 10 &&
+             data.preferredLanguageLabel is string && data.preferredLanguageLabel.size() >= 1 && data.preferredLanguageLabel.size() <= 40 &&
+             data.autoTranslateEnabled is bool &&
+             data.onboardingCompleted is bool &&
+             data.adBlockEnabled is bool &&
+             data.strictTrackerBlock is bool &&
+             data.vpnAutoConnect is bool &&
+             data.vpnRegion is string && data.vpnRegion.size() >= 1 && data.vpnRegion.size() <= 40 &&
+             data.desktopModeDefault is bool &&
+             data.darkThemeEnabled is bool &&
+             data.searchEngine is string && data.searchEngine.size() >= 1 && data.searchEngine.size() <= 30 &&
+             data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 80 &&
+             data.adsBlockedTotal is int && data.adsBlockedTotal >= 0 &&
+             data.trackersBlockedTotal is int && data.trackersBlockedTotal >= 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBookmark(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.url is string && data.url.size() >= 1 && data.url.size() <= 2000 &&
+             data.folder is string && data.folder.size() >= 1 && data.folder.size() <= 60 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidExtension(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.version is string && data.version.size() >= 1 && data.version.size() <= 20 &&
+             data.author is string && data.author.size() >= 1 && data.author.size() <= 80 &&
+             data.category in ['adblock', 'appearance', 'desktop', 'privacy', 'media', 'custom'] &&
+             data.matchPattern is string && data.matchPattern.size() >= 1 && data.matchPattern.size() <= 200 &&
+             data.jsCode is string && data.jsCode.size() <= 30000 &&
+             data.cssCode is string && data.cssCode.size() <= 20000 &&
+             data.enabled is bool &&
+             data.isBuiltIn is bool &&
+             data.runAt in ['document_start', 'document_end'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSyncedTab(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.url is string && data.url.size() >= 1 && data.url.size() <= 2000 &&
+             data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 80 &&
+             data.isIncognito is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId}/profile/{docId} {
+      allow get: if isOwner(userId) && isValidId(docId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(docId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'preferredLanguage', 'preferredLanguageLabel',
+                         'autoTranslateEnabled', 'onboardingCompleted', 'adBlockEnabled',
+                         'strictTrackerBlock', 'vpnAutoConnect', 'vpnRegion',
+                         'desktopModeDefault', 'darkThemeEnabled', 'searchEngine',
+                         'deviceName', 'adsBlockedTotal', 'trackersBlockedTotal',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'email', 'preferredLanguage',
+                         'preferredLanguageLabel', 'autoTranslateEnabled', 'onboardingCompleted',
+                         'adBlockEnabled', 'strictTrackerBlock', 'vpnAutoConnect', 'vpnRegion',
+                         'desktopModeDefault', 'darkThemeEnabled', 'searchEngine',
+                         'deviceName', 'adsBlockedTotal', 'trackersBlockedTotal',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserPreferences(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(docId) &&
+                       isValidUserPreferences(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'email', 'preferredLanguage',
+                         'preferredLanguageLabel', 'autoTranslateEnabled', 'onboardingCompleted',
+                         'adBlockEnabled', 'strictTrackerBlock', 'vpnAutoConnect', 'vpnRegion',
+                         'desktopModeDefault', 'darkThemeEnabled', 'searchEngine',
+                         'deviceName', 'adsBlockedTotal', 'trackersBlockedTotal', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(docId);
+    }
+
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow get: if isOwner(userId) && isValidId(bookmarkId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(bookmarkId) &&
+                       incoming().keys().hasAll(['userId', 'title', 'url', 'folder', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'url', 'folder', 'createdAt', 'updatedAt']) &&
+                       isValidBookmark(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(bookmarkId) &&
+                       isValidBookmark(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'url', 'folder', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(bookmarkId);
+    }
+
+    match /users/{userId}/extensions/{extensionId} {
+      allow get: if isOwner(userId) && isValidId(extensionId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(extensionId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'description', 'version', 'author',
+                         'category', 'matchPattern', 'jsCode', 'cssCode',
+                         'enabled', 'isBuiltIn', 'runAt', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'description', 'version', 'author',
+                         'category', 'matchPattern', 'jsCode', 'cssCode',
+                         'enabled', 'isBuiltIn', 'runAt', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidExtension(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(extensionId) &&
+                       isValidExtension(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'description', 'version', 'author',
+                         'category', 'matchPattern', 'jsCode', 'cssCode',
+                         'enabled', 'runAt', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(extensionId);
+    }
+
+    match /users/{userId}/synced_tabs/{tabId} {
+      allow get: if isOwner(userId) && isValidId(tabId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(tabId) &&
+                       incoming().keys().hasAll(['userId', 'title', 'url', 'deviceName', 'isIncognito', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'url', 'deviceName', 'isIncognito', 'createdAt', 'updatedAt']) &&
+                       isValidSyncedTab(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(tabId) &&
+                       isValidSyncedTab(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'url', 'deviceName', 'isIncognito', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(tabId);
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "Synced browser profile preferences, language settings, and privacy counters for a user across devices.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "Optional user display name." },
+        "email": { "type": "string", "description": "Optional user email isolated to owner." },
+        "preferredLanguage": { "type": "string", "description": "ISO language code for automatic translation." },
+        "preferredLanguageLabel": { "type": "string", "description": "Human-readable name of preferred language." },
+        "autoTranslateEnabled": { "type": "boolean", "description": "Whether foreign websites are translated automatically." },
+        "onboardingCompleted": { "type": "boolean", "description": "Whether first-launch language onboarding is finished." },
+        "adBlockEnabled": { "type": "boolean", "description": "Native Chromium ad-blocker toggle." },
+        "strictTrackerBlock": { "type": "boolean", "description": "Strict anti-fingerprinting and tracker shield." },
+        "vpnAutoConnect": { "type": "boolean", "description": "Auto-enable encrypted VPN shield on start." },
+        "vpnRegion": { "type": "string", "description": "Selected VPN routing node." },
+        "desktopModeDefault": { "type": "boolean", "description": "Request desktop sites by default." },
+        "darkThemeEnabled": { "type": "boolean", "description": "Force dark obsidian browser UI." },
+        "searchEngine": { "type": "string", "description": "Default private search engine." },
+        "deviceName": { "type": "string", "description": "Current device label for cross-device sync." },
+        "adsBlockedTotal": { "type": "integer", "description": "Lifetime blocked ads counter." },
+        "trackersBlockedTotal": { "type": "integer", "description": "Lifetime blocked trackers counter." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": [
+        "userId",
+        "preferredLanguage",
+        "preferredLanguageLabel",
+        "autoTranslateEnabled",
+        "onboardingCompleted",
+        "adBlockEnabled",
+        "strictTrackerBlock",
+        "vpnAutoConnect",
+        "vpnRegion",
+        "desktopModeDefault",
+        "darkThemeEnabled",
+        "searchEngine",
+        "deviceName",
+        "adsBlockedTotal",
+        "trackersBlockedTotal",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SyncedBookmark": {
+      "title": "SyncedBookmark",
+      "description": "Cloud-synced browser bookmark.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "folder": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "url", "folder", "createdAt", "updatedAt"]
+    },
+    "BrowserExtension": {
+      "title": "BrowserExtension",
+      "description": "User-installed or customized userscript and CSS browser extension.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string", "enum": ["adblock", "appearance", "desktop", "privacy", "media", "custom"] },
+        "matchPattern": { "type": "string" },
+        "jsCode": { "type": "string" },
+        "cssCode": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "isBuiltIn": { "type": "boolean" },
+        "runAt": { "type": "string", "enum": ["document_start", "document_end"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "name",
+        "description",
+        "version",
+        "author",
+        "category",
+        "matchPattern",
+        "jsCode",
+        "cssCode",
+        "enabled",
+        "isBuiltIn",
+        "runAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SyncedTab": {
+      "title": "SyncedTab",
+      "description": "Open browser tab synced across personal devices.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "isIncognito": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "url", "deviceName", "isIncognito", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profile/{docId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "User browser profile and preferences synced across devices."
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": { "$ref": "#/entities/SyncedBookmark" },
+      "description": "User bookmarks synced across devices."
+    },
+    "/users/{userId}/extensions/{extensionId}": {
+      "schema": { "$ref": "#/entities/BrowserExtension" },
+      "description": "User-installed open-source and custom extensions synced across devices."
+    },
+    "/users/{userId}/synced_tabs/{tabId}": {
+      "schema": { "$ref": "#/entities/SyncedTab" },
+      "description": "User open tabs synced across devices."
+    }
+  }
+}
